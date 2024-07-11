@@ -10,26 +10,44 @@ fundButton.onclick = fund
 balanceButton.onclick = getBalance
 withdrawButton.onclick = withdraw
 
-
 async function connect() {
-    if (typeof window.ethereum !== undefined) {
-        await window.ethereum.request({ method: "eth_requestAccounts" })
-        connectButton.innerHTML = "connected!"
-    } else {
-        connectButton.innerHTML = "Please install metamask!"
+    let account
+    try {
+        if (typeof window.ethereum !== undefined) {
+            account = await window.ethereum.request({
+                method: "eth_requestAccounts",
+            })
+        } else {
+            connectButton.innerHTML = "Please install metamask!"
+        }
+
+        if (account) {
+            connectButton.style.backgroundColor = "rgb(22, 232, 57)"
+            connectButton.style.letterSpacing = "1.1px"
+            connectButton.style.cursor = "default"
+            connectButton.innerHTML = `${account.toString().slice(0, 8)}.....${account.toString().slice(34, 42)}`
+        }
+    } catch (error) {
+        const errorMessage =
+            error.reason || error.message || "Unknown error occurred"
+        alert(`Error: ${errorMessage}`)
     }
 }
 
-async function getBalance(){
-    if(typeof window.ethereum !== undefined){
+async function getBalance() {
+    if (typeof window.ethereum !== undefined) {
         const provider = new ethers.BrowserProvider(window.ethereum)
         const balance = await provider.getBalance(contractAddress)
-        console.log(ethers.formatEther(balance))
+        document.getElementById("balance").innerHTML =
+            `Balance: ${ethers.formatEther(balance)} ETH`
+        setTimeout(() => {
+            document.getElementById("balance").innerHTML = ""
+        }, 5000)
     }
 }
 
 async function fund() {
-    const ethAmount = document.getElementById('ethAmount').value
+    const ethAmount = document.getElementById("ethAmount").value
     console.log(`Funding with ${ethAmount}...`)
     // provider / connection to the blockchain
     // signer / wallet / someone with some gas
@@ -46,15 +64,19 @@ async function fund() {
 
         await listenForTransactionMine(transactionResponse, provider)
         console.log("Done!")
+        document.getElementById("ethAmount").value = ""
     } catch (error) {
-        console.log(error)
+        const errorMessage =
+            error.reason || error.message || "Unknown error occurred"
+        alert(`Error: ${errorMessage}`)
+        document.getElementById("ethAmount").value = ""
     }
 }
 
-function listenForTransactionMine(transactionResponse, provider){
+function listenForTransactionMine(transactionResponse, provider) {
     console.log(`Mining ${transactionResponse.hash}...`)
-    return new Promise((resolve,reject)=>{
-        provider.once(transactionResponse.hash, async(transactionReceipt) => {
+    return new Promise((resolve, reject) => {
+        provider.once(transactionResponse.hash, async (transactionReceipt) => {
             console.log(
                 `Completed with ${await transactionReceipt.confirmations()} confirmations`,
             )
@@ -63,17 +85,22 @@ function listenForTransactionMine(transactionResponse, provider){
     })
 }
 
-async function withdraw(){
-    if(typeof window.ethereum !== undefined){
-        console.log("Withdrawing....")
-        const provider = new  ethers.BrowserProvider(window.ethereum)
+async function withdraw() {
+    if (typeof window.ethereum !== undefined) {
+        const provider = new ethers.BrowserProvider(window.ethereum)
         const signer = await provider.getSigner()
         const contract = new ethers.Contract(contractAddress, abi, signer)
+        const owner = await contract.getOwner()
         try {
+            if (owner.toString() !== signer.address) {
+                throw new Error("Only owner can withdraw!")
+            }
             const transactionResponse = await contract.withdraw()
             await listenForTransactionMine(transactionResponse, provider)
         } catch (error) {
-            console.log(error)
+            const errorMessage =
+                error.reason || error.message || "Unknown error occurred"
+            alert(`Error: ${errorMessage}`)
         }
     }
 }
