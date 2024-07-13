@@ -35,29 +35,43 @@ async function connect() {
 }
 
 async function getBalance() {
-    if (typeof window.ethereum !== undefined) {
-        const provider = new ethers.BrowserProvider(window.ethereum)
-        const balance = await provider.getBalance(contractAddress)
-        document.getElementById("balance").innerHTML =
-            `Balance: ${ethers.formatEther(balance)} ETH`
-        setTimeout(() => {
-            document.getElementById("balance").innerHTML = ""
-        }, 5000)
+    try {
+        if (connectButton.innerHTML === "Connect Metamask") {
+            throw new Error("Metamask not connected!")
+        }
+        if (typeof window.ethereum !== undefined) {
+            const provider = new ethers.BrowserProvider(window.ethereum)
+            const balance = await provider.getBalance(contractAddress)
+            document.getElementById("balance").innerHTML =
+                `Balance: ${ethers.formatEther(balance)} ETH`
+            setTimeout(() => {
+                document.getElementById("balance").innerHTML = ""
+            }, 5000)
+        }
+    } catch (error) {
+        const errorMessage =
+            error.reason || error.message || "Unknown error occurred"
+        alert(`Error: ${errorMessage}`)
+        document.getElementById("ethAmount").value = ""
     }
 }
 
 async function fund() {
-    const ethAmount = document.getElementById("ethAmount").value
-    console.log(`Funding with ${ethAmount}...`)
-    // provider / connection to the blockchain
-    // signer / wallet / someone with some gas
-    // contract that we are interacting with
-    // ^ ABI & Address
-
-    const provider = new ethers.BrowserProvider(window.ethereum)
-    const signer = await provider.getSigner()
-    const contract = new ethers.Contract(contractAddress, abi, signer)
     try {
+        if (connectButton.innerHTML === "Connect Metamask") {
+            throw new Error("Metamask not connected!")
+        }
+        const ethAmount = document.getElementById("ethAmount").value
+        console.log(`Funding with ${ethAmount}...`)
+        // provider / connection to the blockchain
+        // signer / wallet / someone with some gas
+        // contract that we are interacting with
+        // ^ ABI & Address
+
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const signer = await provider.getSigner()
+        const contract = new ethers.Contract(contractAddress, abi, signer)
+
         const transactionResponse = await contract.fund({
             value: ethers.parseEther(ethAmount),
         })
@@ -86,21 +100,25 @@ function listenForTransactionMine(transactionResponse, provider) {
 }
 
 async function withdraw() {
-    if (typeof window.ethereum !== undefined) {
-        const provider = new ethers.BrowserProvider(window.ethereum)
-        const signer = await provider.getSigner()
-        const contract = new ethers.Contract(contractAddress, abi, signer)
-        const owner = await contract.getOwner()
-        try {
+    try {
+        if (connectButton.innerHTML === "Connect Metamask") {
+            throw new Error("Metamask not connected!")
+        }
+        if (typeof window.ethereum !== undefined) {
+            const provider = new ethers.BrowserProvider(window.ethereum)
+            const signer = await provider.getSigner()
+            const contract = new ethers.Contract(contractAddress, abi, signer)
+            const owner = await contract.getOwner()
+
             if (owner.toString() !== signer.address) {
                 throw new Error("Only owner can withdraw!")
             }
             const transactionResponse = await contract.withdraw()
             await listenForTransactionMine(transactionResponse, provider)
-        } catch (error) {
-            const errorMessage =
-                error.reason || error.message || "Unknown error occurred"
-            alert(`Error: ${errorMessage}`)
         }
+    } catch (error) {
+        const errorMessage =
+            error.reason || error.message || "Unknown error occurred"
+        alert(`Error: ${errorMessage}`)
     }
 }
